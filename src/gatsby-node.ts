@@ -15,33 +15,37 @@ interface ServerlessRoutingRule {
 // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-websiteconfiguration-routingrules.html
 const getRules = (pluginOptions: PluginOptions, routes: GatsbyRedirect[]): RoutingRules => (
     routes.map(route => ({
-        ...buildCondition(route.fromPath),
-        ...buildRedirect(pluginOptions,route),
+        Condition: {
+            ...buildCondition(route.fromPath),
+        },
+        Redirect: {
+            ...buildRedirect(pluginOptions, route),
+        },      
     }))
 );
 const buildCondition = (path: string) => {
-  return {
-    Condition: {
+    return {
       KeyPrefixEquals: withoutLeadingSlash(path),
-      HttpErrorCodeReturnedEquals: '404'
-    }
+      HttpErrorCodeReturnedEquals: '404',
   };
 };
 
 const buildRedirect = (pluginOptions: PluginOptions, route: GatsbyRedirect) => {
-    
-  const mainRedirect = {
-    ReplaceKeyWith: withoutTrailingSlash(withoutLeadingSlash(route.toPath)),
-    HttpRedirectCode: route.isPermanent ? '301' : '302'
-  };
 
-  if (route.toPath.indexOf('://') > 0) {
-    return mainRedirect;
+    if (route.toPath.indexOf('://') > 0) {
+      const url = new URL(route.toPath);
+      return {
+        ReplaceKeyWith: withoutTrailingSlash(withoutLeadingSlash(route.toPath)),
+        HttpRedirectCode: route.isPermanent ? '301' : '302',
+        Protocol: url.protocol,
+        HostName: url.hostname,
+    };
   } else {
-    return {
-      ...mainRedirect,
-      Protocol: pluginOptions.protocol,
-      HostName: pluginOptions.hostname
+      return {
+        ReplaceKeyWith: withoutTrailingSlash(withoutLeadingSlash(route.toPath)),
+        HttpRedirectCode: route.isPermanent ? '301' : '302',
+        Protocol: pluginOptions.protocol,
+        HostName: pluginOptions.hostname,
     };
   }
 };
@@ -90,7 +94,7 @@ export const onPostBuild = ({ store }: any, userPluginOptions: PluginOptions) =>
     const pluginOptions = { ...DEFAULT_OPTIONS, ...userPluginOptions };
     const { redirects, pages, program }: GatsbyState = store.getState();
 
-    if(!pluginOptions.hostname != !pluginOptions.protocol) { // If one of these is provided but not the other
+    if (!pluginOptions.hostname != !pluginOptions.protocol) { // If one of these is provided but not the other
         throw new Error(`Please either provide both 'hostname' and 'protocol', or neither of them.`);
     }
 
@@ -128,7 +132,7 @@ export const onPostBuild = ({ store }: any, userPluginOptions: PluginOptions) =>
     const temporaryRedirects = redirects.filter(redirect => redirect.fromPath !== '/')
         .filter(redirect => !redirect.isPermanent);
 
-    let permanentRedirects: GatsbyRedirect[] = redirects.filter(redirect => redirect.fromPath !== '/')
+    const permanentRedirects: GatsbyRedirect[] = redirects.filter(redirect => redirect.fromPath !== '/')
         .filter(redirect => redirect.isPermanent);
 
     if (pluginOptions.generateRoutingRules) {
