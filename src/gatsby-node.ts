@@ -15,18 +15,36 @@ interface ServerlessRoutingRule {
 // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-websiteconfiguration-routingrules.html
 const getRules = (pluginOptions: PluginOptions, routes: GatsbyRedirect[]): RoutingRules => (
     routes.map(route => ({
-        Condition: {
-            KeyPrefixEquals: withoutLeadingSlash(route.fromPath),
-            HttpErrorCodeReturnedEquals: '404',
-        },
-        Redirect: {
-            ReplaceKeyWith: withoutTrailingSlash(withoutLeadingSlash(route.toPath)),
-            HttpRedirectCode: route.isPermanent ? '301' : '302',
-            Protocol: pluginOptions.protocol,
-            HostName: pluginOptions.hostname,
-        },
+        ...buildCondition(route.fromPath),
+        ...buildRedirect(pluginOptions,route),
     }))
 );
+const buildCondition = (path: string) => {
+  return {
+    Condition: {
+      KeyPrefixEquals: withoutLeadingSlash(path),
+      HttpErrorCodeReturnedEquals: '404'
+    }
+  };
+};
+
+const buildRedirect = (pluginOptions: PluginOptions, route: GatsbyRedirect) => {
+    
+  const mainRedirect = {
+    ReplaceKeyWith: withoutTrailingSlash(withoutLeadingSlash(route.toPath)),
+    HttpRedirectCode: route.isPermanent ? '301' : '302'
+  };
+
+  if (route.toPath.indexOf('://') > 0) {
+    return mainRedirect;
+  } else {
+    return {
+      ...mainRedirect,
+      Protocol: pluginOptions.protocol,
+      HostName: pluginOptions.hostname
+    };
+  }
+};
 
 let params: Params = {};
 
