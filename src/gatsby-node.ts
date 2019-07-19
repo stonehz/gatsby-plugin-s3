@@ -25,13 +25,12 @@ const getRules = (pluginOptions: PluginOptions, routes: GatsbyRedirect[]): Routi
 );
 const buildCondition = (path: string) => {
     return {
-      KeyPrefixEquals: withoutLeadingSlash(path),
-      HttpErrorCodeReturnedEquals: '404',
-  };
+        KeyPrefixEquals: withoutLeadingSlash(path),
+        HttpErrorCodeReturnedEquals: '404',
+    };
 };
 
 const buildRedirect = (pluginOptions: PluginOptions, route: GatsbyRedirect) => {
-
     if (route.toPath.indexOf('://') > 0) {
       const url = new URL(route.toPath);
       return {
